@@ -551,8 +551,15 @@ int cuda_get_deviceinfo(nvid_ctx *ctx)
     ctx->device_mpcount         = props.multiProcessorCount;
     ctx->device_arch[0]         = props.major;
     ctx->device_arch[1]         = props.minor;
+#if CUDA_VERSION < 13000
     ctx->device_clockRate       = props.clockRate;
     ctx->device_memoryClockRate = props.memoryClockRate;
+#else
+    // In CUDA 13.0+, clockRate and memoryClockRate were removed from cudaDeviceProp
+    // Use cudaDeviceGetAttribute instead
+    cudaDeviceGetAttribute(&ctx->device_clockRate, cudaDevAttrClockRate, ctx->device_id);
+    cudaDeviceGetAttribute(&ctx->device_memoryClockRate, cudaDevAttrMemoryClockRate, ctx->device_id);
+#endif
     ctx->device_pciBusID        = props.pciBusID;
     ctx->device_pciDeviceID     = props.pciDeviceID;
     ctx->device_pciDomainID     = props.pciDomainID;

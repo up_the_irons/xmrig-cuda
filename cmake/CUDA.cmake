@@ -14,7 +14,17 @@ if (XMRIG_LARGEGRID)
     add_definitions("-DXMRIG_LARGEGRID=${XMRIG_LARGEGRID}")
 endif()
 
-set(DEFAULT_CUDA_ARCH "50")
+# Set default architecture based on CUDA version
+# CUDA 13.0+ dropped support for Pascal and Volta, minimum is Turing (75)
+# CUDA 12.0+ dropped support for Maxwell (50), minimum is Pascal (60)
+# CUDA < 12.0 supports Maxwell (50)
+if (NOT CUDA_VERSION VERSION_LESS 13.0)
+    set(DEFAULT_CUDA_ARCH "75")
+elseif (NOT CUDA_VERSION VERSION_LESS 12.0)
+    set(DEFAULT_CUDA_ARCH "60")
+else()
+    set(DEFAULT_CUDA_ARCH "50")
+endif()
 
 # Fermi GPUs are only supported with CUDA < 9.0
 if (CUDA_VERSION VERSION_LESS 9.0)
@@ -28,13 +38,13 @@ elseif (CUDA_VERSION VERSION_LESS 12.0)
     list(APPEND DEFAULT_CUDA_ARCH "35")
 endif()
 
-# add Pascal support for CUDA >= 8.0
-if (NOT CUDA_VERSION VERSION_LESS 8.0)
+# add Pascal support for CUDA >= 8.0 and < 13.0
+if (NOT CUDA_VERSION VERSION_LESS 8.0 AND CUDA_VERSION VERSION_LESS 13.0)
     list(APPEND DEFAULT_CUDA_ARCH "60")
 endif()
 
-# add Volta support for CUDA >= 9.0
-if (NOT CUDA_VERSION VERSION_LESS 9.0)
+# add Volta support for CUDA >= 9.0 and < 13.0
+if (NOT CUDA_VERSION VERSION_LESS 9.0 AND CUDA_VERSION VERSION_LESS 13.0)
     list(APPEND DEFAULT_CUDA_ARCH "70")
 endif()
 
@@ -57,9 +67,16 @@ if (NOT CUDA_VERSION VERSION_LESS 11.5)
 endif()
 
 if (NOT CUDA_VERSION VERSION_LESS 11.8)
+    list(APPEND DEFAULT_CUDA_ARCH "88")
     list(APPEND DEFAULT_CUDA_ARCH "89")
     list(APPEND DEFAULT_CUDA_ARCH "90")
 endif()
+
+# add Blackwell support for CUDA >= 13.0
+if (NOT CUDA_VERSION VERSION_LESS 13.0)
+    list(APPEND DEFAULT_CUDA_ARCH "100")
+endif()
+
 list(SORT DEFAULT_CUDA_ARCH)
 
 set(CUDA_ARCH "${DEFAULT_CUDA_ARCH}" CACHE STRING "Set GPU architecture (semicolon separated list, e.g. '-DCUDA_ARCH=20;35;60')")
@@ -78,7 +95,19 @@ foreach(CUDA_ARCH_ELEM ${CUDA_ARCH})
         message(FATAL_ERROR "Unsupported CUDA architecture '${CUDA_ARCH_ELEM}' specified.")
     endif()
 
-    if (NOT CUDA_VERSION VERSION_LESS 11.0)
+    if (NOT CUDA_VERSION VERSION_LESS 13.0)
+        if(${CUDA_ARCH_ELEM} LESS 75)
+            message("${MSG_CUDA_MAP}")
+            message(FATAL_ERROR "Unsupported CUDA architecture '${CUDA_ARCH_ELEM}' specified. "
+                                "Use CUDA v12.x maximum, Pascal (60) and Volta (70) were dropped at v13. Minimum is Turing (75).")
+        endif()
+    elseif (NOT CUDA_VERSION VERSION_LESS 12.0)
+        if(${CUDA_ARCH_ELEM} LESS 60)
+            message("${MSG_CUDA_MAP}")
+            message(FATAL_ERROR "Unsupported CUDA architecture '${CUDA_ARCH_ELEM}' specified. "
+                                "Use CUDA v11.x maximum, Maxwell (50) was dropped at v12. Minimum is Pascal (60).")
+        endif()
+    elseif (NOT CUDA_VERSION VERSION_LESS 11.0)
         if(${CUDA_ARCH_ELEM} LESS 35)
             message("${MSG_CUDA_MAP}")
             message(FATAL_ERROR "Unsupported CUDA architecture '${CUDA_ARCH_ELEM}' specified. "
